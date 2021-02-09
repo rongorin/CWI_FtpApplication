@@ -508,7 +508,8 @@ namespace Controllers
 
                     sftp.ChangeDirectory(remoteDirectory);
 
-                    string[] uplFilesArr = Directory.GetFiles(localFileDirectory + "\\" + ram, remoteFilePattern); //NOTE: remoteFilePattern contains Localfile Pattern!!
+                    // string[] uplFilesArr = Directory.GetFiles(localFileDirectory + "\\" + ram, remoteFilePattern); //NOTE: remoteFilePattern contains Localfile Pattern!!
+                    string[] uplFilesArr = Directory.GetFiles(localFileDirectory, remoteFilePattern); //NOTE: remoteFilePattern contains Localfile Pattern!!
 
                     foreach (var uploadFile in uplFilesArr)
                     {
@@ -519,9 +520,20 @@ namespace Controllers
                                 sftp.BufferSize = 4 * 1024;
                                 sftp.UploadFile(fileStream, Path.GetFileName(uploadFile));
                             }
+                            try
+                            {
+                                MoveToBackupFolder(uploadFile); 
+                            }
+                            catch (Exception ex)
+                            {
+                                LogObj.WriteExcelrow("Warning", enMsgType.enMsgType_Info, filePrefix,
+                                                    pharmacyName, uploadFile, DateTime.Now, "Couldnt copy to the Backup folder", ref tblExcel);
+                            }
+
                             result += uploadFile + "\r\n";
                             LogObj.WriteExcelrow("Success", enMsgType.enMsgType_Info, filePrefix,
                                                      pharmacyName, uploadFile, DateTime.Now, "", ref tblExcel);
+
 
                         }
                         catch (Exception ex)
@@ -549,6 +561,21 @@ namespace Controllers
                 LogObj.WriteExcelrow("Failure!", enMsgType.enMsgType_Info, filePrefix, pharmacyName, "", DateTime.Now, "Cant connect to HostIp " + hostIP, ref tblExcel);
                 return ("Failure occurred trying to connect to SecureSFtp HostIp " + hostIP + " directory " + remoteDirectory + remoteFilePattern + " error:" + ex.Message + "\r\n");
             }
+        }
+
+        public void MoveToBackupFolder(string filename)
+        { 
+                FileInfo fi = new FileInfo(filename);
+                string fullFolderName = fi.DirectoryName;
+                string newFolder = string.Format("{0}\\Backup\\", fullFolderName);
+                if (!Directory.Exists(newFolder))
+                {
+                    Directory.CreateDirectory(newFolder);
+                }
+
+                string newFullName = string.Format("{0}{1}", newFolder, Path.GetFileName(filename));
+                System.IO.File.Move(filename, newFullName); 
+            
         }
     }
 
